@@ -225,25 +225,19 @@ func (r *Reconciler) reconcileExecute(ctx context.Context, app *applicationv1.On
 	if externalMode == ExternalSelectionExternal {
 		return r.reconcileStatus(ctx, app, dependencies)
 	}
-	if isRootApplication(app) {
-		if err := r.preflightOwnership(ctx, app, false, managedAPIsRequired); err != nil {
-			return r.handleOwnershipError(ctx, app, err)
-		}
+	if err := r.preflightOwnership(ctx, app, false, managedAPIsRequired); err != nil {
+		return r.handleOwnershipError(ctx, app, err)
 	}
-
-	observed := observation{allResources: true, current: app.Spec.Release.ReleaseName}
-	if isRootApplication(app) {
-		applied, err := r.applyManagedResources(ctx, app)
-		if err != nil {
-			return r.handleOwnershipError(ctx, app, err)
-		}
-		if !applied {
-			return r.reconcileStatus(ctx, app, dependencies)
-		}
-		observed, err = r.observeManagedResources(ctx, app, true)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	applied, err := r.applyManagedResources(ctx, app)
+	if err != nil {
+		return r.handleOwnershipError(ctx, app, err)
+	}
+	if !applied {
+		return r.reconcileStatus(ctx, app, dependencies)
+	}
+	observed, err := r.observeManagedResources(ctx, app, true)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 	protectedApplied := true
 	if observed.allResources && usesProtectedSecrets(app) {
@@ -342,11 +336,9 @@ func (r *Reconciler) reconcileDelete(ctx context.Context, app *applicationv1.One
 	status := baseStatus(app)
 	status.Phase = applicationv1.PhaseDeleting
 	status.Progress = applicationv1.ApplicationProgress{Total: applicationProgressTotal(app), Current: app.Spec.Release.ReleaseName}
-	if isRootApplication(app) {
-		status.Resources = deletingManagedResourceStatuses(app)
-		if usesProtectedSecrets(app) {
-			status.Resources = append(status.Resources, deletingProtectedSecretStatuses(app)...)
-		}
+	status.Resources = deletingManagedResourceStatuses(app)
+	if usesProtectedSecrets(app) {
+		status.Resources = append(status.Resources, deletingProtectedSecretStatuses(app)...)
 	}
 	clearLastError(&status)
 	if err := r.updateStatus(ctx, app, status); err != nil {
@@ -378,14 +370,12 @@ func (r *Reconciler) reconcileDelete(ctx context.Context, app *applicationv1.One
 		}
 	}
 
-	if isRootApplication(app) {
-		deleted, deleteErr := r.reconcileDeleteManagedResources(ctx, app)
-		if deleteErr != nil {
-			return r.handleOwnershipError(ctx, app, deleteErr)
-		}
-		if deleted {
-			return ctrl.Result{RequeueAfter: r.requeueDuration()}, nil
-		}
+	deleted, deleteErr := r.reconcileDeleteManagedResources(ctx, app)
+	if deleteErr != nil {
+		return r.handleOwnershipError(ctx, app, deleteErr)
+	}
+	if deleted {
+		return ctrl.Result{RequeueAfter: r.requeueDuration()}, nil
 	}
 
 	if controllerutil.ContainsFinalizer(app, applicationv1.ApplicationFinalizer) {

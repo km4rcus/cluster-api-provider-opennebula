@@ -79,3 +79,38 @@ Ruby and Go use shared fixtures to verify this contract:
 go test ./internal/application ./internal/monitor ./cmd/...
 ruby hack/check-oneks-canonical.rb /path/to/one-ee
 ```
+
+## Dependency managed resources
+
+Both Root and Dependency applications may declare `managedResources`. OneKS
+compiles each catalogue dependency's `additionalResources` into the corresponding
+embedded `dependencyPlans[].managedResources`; the controller validates this
+payload before materializing a child and copies it into the child's spec.
+Resources use the child release's resolved placeholders and ownership identity.
+Their manifests, readiness rules and deletion policies participate in the child
+plan digest and therefore in shared-dependency compatibility checks.
+
+For either role, execution waits for direct dependencies to become Ready, applies
+managed resources, waits for their configured readiness, and only then creates
+its own HelmChart. Resource `dependsOn` orders creation, not readiness between
+individual resources. CRD installers must explicitly wait for Established before
+reporting completion; requiredResources checks only object existence. Resources
+whose APIs are installed by the same application's later Helm release cannot be
+used as prerequisites of that release.
+
+The child owns resource status and cleanup. Removing one consumer does not
+remove a shared dependency still used by another. Resource Delete/Retain policies
+continue to apply during child cleanup. Dependency applications still cannot
+contain embedded dependencyPlans or protected Secret fields. externalDetection
+cannot be combined with nonempty managedResources, avoiding writes to an
+externally detected installation.
+
+This optional plan-v1beta1 extension preserves digests for plans with no dependency
+resources. Install the updated controller and OneKSApplication CRD before submitting
+plans that use the extension. Existing application specs are immutable; recreate
+applications through their normal lifecycle rather than editing specs in place.
+The controller's Helm chart contains the generated CRD, but an existing cluster's
+CRD must be explicitly upgraded: Helm does not update files under crds/ on upgrade.
+No additional RBAC is granted by this extension. A trusted bootstrap must provision
+permissions for managed resource types (and any installer Job's service account)
+before applications are submitted.

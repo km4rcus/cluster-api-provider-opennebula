@@ -97,9 +97,6 @@ func validatePlan(app *applicationv1.OneKSApplication, config ValidationConfig, 
 		return invalid("InvalidApplicationRole", "plan-v1beta1 role must be Root or Dependency")
 	}
 	if app.Spec.Role == applicationv1.ApplicationRoleDependency {
-		if len(app.Spec.ManagedResources) != 0 {
-			return invalid("InvalidDependencyManagedResources", "Dependency applications must not contain managedResources")
-		}
 		if app.Spec.SecretInputRef != nil || len(app.Spec.ProtectedSecrets) != 0 || app.Spec.Release.AuthSecret != nil {
 			return invalid("InvalidDependencyProtectedSecrets", "Dependency applications must not contain protected Secret fields")
 		}
@@ -111,6 +108,9 @@ func validatePlan(app *applicationv1.OneKSApplication, config ValidationConfig, 
 		return invalid("InvalidExternalDetection", "top-level externalDetection is permitted only for Dependency applications")
 	}
 	if app.Spec.ExternalDetection != nil {
+		if len(app.Spec.ManagedResources) != 0 {
+			return invalid("InvalidExternalDetection", "externalDetection must not be combined with managedResources")
+		}
 		if err := validateExternalDetection(*app.Spec.ExternalDetection, "externalDetection"); err != nil {
 			return err
 		}
@@ -312,7 +312,8 @@ func dependencyPlanChildSpec(clusterID string, plan applicationv1.DependencyPlan
 		PlanVersion: applicationv1.PlanVersion, PlanDigest: plan.PlanDigest,
 		Release: plan.Release,
 		Role:    applicationv1.ApplicationRoleDependency, Dependencies: plan.Dependencies,
-		DependencyPlans: nil, Uninstall: plan.Uninstall, ExternalDetection: plan.ExternalDetection,
+		DependencyPlans: nil, ManagedResources: plan.ManagedResources,
+		Uninstall: plan.Uninstall, ExternalDetection: plan.ExternalDetection,
 		DeletionPolicy: plan.DeletionPolicy,
 	}
 }
@@ -331,6 +332,12 @@ func validateDependencyReference(reference applicationv1.DependencyReference, pa
 }
 
 func validateDependencyPlan(plan applicationv1.DependencyPlan, path string) *PlanError {
+	if err := validateManagedResources(plan.ManagedResources); err != nil {
+		return invalid(err.Reason, "%s: %s", path, err.Message)
+	}
+	if plan.ExternalDetection != nil && len(plan.ManagedResources) != 0 {
+		return invalid("InvalidExternalDetection", "%s.externalDetection must not be combined with managedResources", path)
+	}
 	if plan.Release.AuthSecret != nil {
 		return invalid("InvalidDependencyAuthSecret", "%s.release does not permit authSecret", path)
 	}

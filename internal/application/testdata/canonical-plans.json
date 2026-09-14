@@ -34,7 +34,7 @@
       "planDigest": "ignored",
       "release": {
         "createNamespace": true,
-        "valuesContent": "z: café\na: <>&/𐀀\n"
+        "valuesContent": "z: caf\u00e9\na: <>&/\ud800\udc00\n"
       },
       "dependencies": [
         {
@@ -61,5 +61,179 @@
     },
     "canonical": "{\"dependencies\":[{\"name\":\"z\",\"planDigest\":\"kept\"},{\"name\":\"a\"}],\"managedResources\":[{\"dependsOn\":[\"z\",\"a\"],\"manifestJSON\":\"{ \\\"z\\\": 1, \\\"a\\\": 2 }\",\"readiness\":{\"timeoutSeconds\":0}}],\"planVersion\":\"oneks.opennebula.io/plan-v1beta1\",\"release\":{\"createNamespace\":true,\"valuesContent\":\"z: caf\\u00e9\\na: <>&/\\ud800\\udc00\\n\"}}",
     "digest": "sha256-r794qYWwrYiqIHqW3JvDJr2Cb25dmNBOcp4_xY_lqFc"
+  },
+  {
+    "name": "dependency-resources-root",
+    "spec": {
+      "clusterID": "42",
+      "catalogueChartID": "root-chart",
+      "planVersion": "oneks.opennebula.io/plan-v1beta1",
+      "release": {
+        "chartID": "root-chart",
+        "repositoryURL": "https://example.test",
+        "chart": "root",
+        "version": "1.0.0",
+        "releaseName": "parent",
+        "targetNamespace": "parent-ns",
+        "createNamespace": true,
+        "valuesContent": ""
+      },
+      "role": "Root",
+      "dependencies": [
+        {
+          "name": "oneks-dep-child-release-fd07105953e1a74cc4e0",
+          "catalogueChartID": "child-chart",
+          "planDigest": "sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM"
+        }
+      ],
+      "dependencyPlans": [
+        {
+          "name": "oneks-dep-child-release-fd07105953e1a74cc4e0",
+          "catalogueChartID": "child-chart",
+          "planDigest": "sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM",
+          "release": {
+            "chartID": "child-chart",
+            "repositoryURL": "https://example.test",
+            "chart": "child",
+            "version": "1.0.0",
+            "releaseName": "child-release",
+            "targetNamespace": "child-ns",
+            "createNamespace": true,
+            "valuesContent": "{}"
+          },
+          "dependencies": [],
+          "deletionPolicy": "Delete",
+          "managedResources": [
+            {
+              "id": "namespace",
+              "scope": "cluster",
+              "apiVersion": "v1",
+              "kind": "Namespace",
+              "namespace": "",
+              "name": "child-ns",
+              "manifestJSON": "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"child-ns\"}}",
+              "dependsOn": [],
+              "readiness": {
+                "conditions": [],
+                "requiredResources": [],
+                "checks": [],
+                "timeoutSeconds": 300
+              },
+              "deletionPolicy": "Retain"
+            },
+            {
+              "id": "install",
+              "scope": "namespaced",
+              "apiVersion": "batch/v1",
+              "kind": "Job",
+              "namespace": "child-ns",
+              "name": "child-release-install",
+              "manifestJSON": "{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"metadata\":{\"name\":\"child-release-install\",\"namespace\":\"child-ns\"},\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"args\":[\"child-chart\"],\"image\":\"installer:v1\",\"name\":\"install\"}],\"restartPolicy\":\"Never\"}}}}",
+              "dependsOn": [
+                "namespace"
+              ],
+              "readiness": {
+                "conditions": [
+                  {
+                    "type": "Complete",
+                    "status": "True"
+                  }
+                ],
+                "requiredResources": [
+                  {
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "namespace": "child-ns",
+                    "name": "child-release-ready"
+                  }
+                ],
+                "checks": [],
+                "timeoutSeconds": 600
+              },
+              "deletionPolicy": "Delete"
+            }
+          ]
+        }
+      ],
+      "deletionPolicy": "Delete",
+      "planDigest": "sha256-2fKtAopFIiFzghkcszF5zILj-Zn5XR2Ddna5uvhSOoI"
+    },
+    "canonical": "{\"catalogueChartID\":\"root-chart\",\"clusterID\":\"42\",\"deletionPolicy\":\"Delete\",\"dependencies\":[{\"catalogueChartID\":\"child-chart\",\"name\":\"oneks-dep-child-release-fd07105953e1a74cc4e0\",\"planDigest\":\"sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM\"}],\"dependencyPlans\":[{\"catalogueChartID\":\"child-chart\",\"deletionPolicy\":\"Delete\",\"managedResources\":[{\"apiVersion\":\"v1\",\"deletionPolicy\":\"Retain\",\"id\":\"namespace\",\"kind\":\"Namespace\",\"manifestJSON\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"Namespace\\\",\\\"metadata\\\":{\\\"name\\\":\\\"child-ns\\\"}}\",\"name\":\"child-ns\",\"readiness\":{\"timeoutSeconds\":300},\"scope\":\"cluster\"},{\"apiVersion\":\"batch/v1\",\"deletionPolicy\":\"Delete\",\"dependsOn\":[\"namespace\"],\"id\":\"install\",\"kind\":\"Job\",\"manifestJSON\":\"{\\\"apiVersion\\\":\\\"batch/v1\\\",\\\"kind\\\":\\\"Job\\\",\\\"metadata\\\":{\\\"name\\\":\\\"child-release-install\\\",\\\"namespace\\\":\\\"child-ns\\\"},\\\"spec\\\":{\\\"template\\\":{\\\"spec\\\":{\\\"containers\\\":[{\\\"args\\\":[\\\"child-chart\\\"],\\\"image\\\":\\\"installer:v1\\\",\\\"name\\\":\\\"install\\\"}],\\\"restartPolicy\\\":\\\"Never\\\"}}}}\",\"name\":\"child-release-install\",\"namespace\":\"child-ns\",\"readiness\":{\"conditions\":[{\"status\":\"True\",\"type\":\"Complete\"}],\"requiredResources\":[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"name\":\"child-release-ready\",\"namespace\":\"child-ns\"}],\"timeoutSeconds\":600},\"scope\":\"namespaced\"}],\"name\":\"oneks-dep-child-release-fd07105953e1a74cc4e0\",\"planDigest\":\"sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM\",\"release\":{\"chart\":\"child\",\"chartID\":\"child-chart\",\"createNamespace\":true,\"releaseName\":\"child-release\",\"repositoryURL\":\"https://example.test\",\"targetNamespace\":\"child-ns\",\"valuesContent\":\"{}\",\"version\":\"1.0.0\"}}],\"planVersion\":\"oneks.opennebula.io/plan-v1beta1\",\"release\":{\"chart\":\"root\",\"chartID\":\"root-chart\",\"createNamespace\":true,\"releaseName\":\"parent\",\"repositoryURL\":\"https://example.test\",\"targetNamespace\":\"parent-ns\",\"version\":\"1.0.0\"},\"role\":\"Root\"}",
+    "digest": "sha256-2fKtAopFIiFzghkcszF5zILj-Zn5XR2Ddna5uvhSOoI"
+  },
+  {
+    "name": "dependency-resources-child",
+    "spec": {
+      "catalogueChartID": "child-chart",
+      "planDigest": "sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM",
+      "release": {
+        "chartID": "child-chart",
+        "repositoryURL": "https://example.test",
+        "chart": "child",
+        "version": "1.0.0",
+        "releaseName": "child-release",
+        "targetNamespace": "child-ns",
+        "createNamespace": true,
+        "valuesContent": "{}"
+      },
+      "dependencies": [],
+      "deletionPolicy": "Delete",
+      "managedResources": [
+        {
+          "id": "namespace",
+          "scope": "cluster",
+          "apiVersion": "v1",
+          "kind": "Namespace",
+          "namespace": "",
+          "name": "child-ns",
+          "manifestJSON": "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"child-ns\"}}",
+          "dependsOn": [],
+          "readiness": {
+            "conditions": [],
+            "requiredResources": [],
+            "checks": [],
+            "timeoutSeconds": 300
+          },
+          "deletionPolicy": "Retain"
+        },
+        {
+          "id": "install",
+          "scope": "namespaced",
+          "apiVersion": "batch/v1",
+          "kind": "Job",
+          "namespace": "child-ns",
+          "name": "child-release-install",
+          "manifestJSON": "{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"metadata\":{\"name\":\"child-release-install\",\"namespace\":\"child-ns\"},\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"args\":[\"child-chart\"],\"image\":\"installer:v1\",\"name\":\"install\"}],\"restartPolicy\":\"Never\"}}}}",
+          "dependsOn": [
+            "namespace"
+          ],
+          "readiness": {
+            "conditions": [
+              {
+                "type": "Complete",
+                "status": "True"
+              }
+            ],
+            "requiredResources": [
+              {
+                "apiVersion": "v1",
+                "kind": "ConfigMap",
+                "namespace": "child-ns",
+                "name": "child-release-ready"
+              }
+            ],
+            "checks": [],
+            "timeoutSeconds": 600
+          },
+          "deletionPolicy": "Delete"
+        }
+      ],
+      "clusterID": "42",
+      "planVersion": "oneks.opennebula.io/plan-v1beta1",
+      "role": "Dependency",
+      "dependencyPlans": []
+    },
+    "canonical": "{\"catalogueChartID\":\"child-chart\",\"clusterID\":\"42\",\"deletionPolicy\":\"Delete\",\"managedResources\":[{\"apiVersion\":\"v1\",\"deletionPolicy\":\"Retain\",\"id\":\"namespace\",\"kind\":\"Namespace\",\"manifestJSON\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"Namespace\\\",\\\"metadata\\\":{\\\"name\\\":\\\"child-ns\\\"}}\",\"name\":\"child-ns\",\"readiness\":{\"timeoutSeconds\":300},\"scope\":\"cluster\"},{\"apiVersion\":\"batch/v1\",\"deletionPolicy\":\"Delete\",\"dependsOn\":[\"namespace\"],\"id\":\"install\",\"kind\":\"Job\",\"manifestJSON\":\"{\\\"apiVersion\\\":\\\"batch/v1\\\",\\\"kind\\\":\\\"Job\\\",\\\"metadata\\\":{\\\"name\\\":\\\"child-release-install\\\",\\\"namespace\\\":\\\"child-ns\\\"},\\\"spec\\\":{\\\"template\\\":{\\\"spec\\\":{\\\"containers\\\":[{\\\"args\\\":[\\\"child-chart\\\"],\\\"image\\\":\\\"installer:v1\\\",\\\"name\\\":\\\"install\\\"}],\\\"restartPolicy\\\":\\\"Never\\\"}}}}\",\"name\":\"child-release-install\",\"namespace\":\"child-ns\",\"readiness\":{\"conditions\":[{\"status\":\"True\",\"type\":\"Complete\"}],\"requiredResources\":[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"name\":\"child-release-ready\",\"namespace\":\"child-ns\"}],\"timeoutSeconds\":600},\"scope\":\"namespaced\"}],\"planVersion\":\"oneks.opennebula.io/plan-v1beta1\",\"release\":{\"chart\":\"child\",\"chartID\":\"child-chart\",\"createNamespace\":true,\"releaseName\":\"child-release\",\"repositoryURL\":\"https://example.test\",\"targetNamespace\":\"child-ns\",\"valuesContent\":\"{}\",\"version\":\"1.0.0\"},\"role\":\"Dependency\"}",
+    "digest": "sha256-3RjQg4dWcOfisvKduvuLCrosCy1agh-2bCZl63jU5cM"
   }
 ]
