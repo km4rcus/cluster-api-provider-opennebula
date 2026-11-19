@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/OpenNebula/cluster-api-provider-opennebula/internal/monitor"
+	"github.com/OpenNebula/cluster-api-provider-opennebula/internal/plugins"
 )
 
 func main() {
@@ -88,6 +89,7 @@ func main() {
 	manager := monitor.NewManager(nodes, pods, observations, modelDeployments, charts)
 
 	ctx := ctrl.SetupSignalHandler()
+	stopPlugins := plugins.Start(ctx, client, modelDeployments, config.ClusterID)
 	health := &http.Server{Addr: config.HealthAddress, Handler: healthHandler(manager)}
 	go func() {
 		<-ctx.Done()
@@ -100,7 +102,9 @@ func main() {
 		}
 	}()
 
-	if err := manager.Run(ctx); err != nil {
+	err = manager.Run(ctx)
+	stopPlugins()
+	if err != nil {
 		log.Error(err, "monitor stopped with an error")
 		os.Exit(1)
 	}
